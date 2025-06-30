@@ -1,8 +1,7 @@
 name: Build test
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
+
 jobs:
   build-test:
     runs-on: ubuntu-latest
@@ -10,9 +9,23 @@ jobs:
     - uses: actions/checkout@v4
     - name: Install dependencies
       run: bash ci.sh deps
-    - name: Build LLVM
-      run: bash ci.sh llvm
     - name: Build binutils
       run: bash ci.sh binutils
-    - name: Build kernel
-      run: bash ci.sh kernel
+    - name: Build LLVM
+      run: bash ci.sh llvm
+    - name: Optimize toolchain
+      run: bash ci.sh fixup
+    - name: Package toolchain
+      run: bash ci.sh pack
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+       name: clang-toolchain
+       path: clang.tar.gz
+    - name: Create Release
+      run: bash ci.sh revision
+    - uses: softprops/action-gh-release@v2
+      with:
+        tag_name: clang-${{ env.CLANG_VERSION }}
+        body_path: revision_info.md
+        files: clang.tar.gz
