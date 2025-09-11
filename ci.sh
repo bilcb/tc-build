@@ -2,7 +2,7 @@
 
 base=$(cd "$(dirname "$0")" && pwd)
 install=$base/install
-version=llvmorg-21.1.0
+version=llvmorg-21.1.1
 
 set -euo pipefail
 
