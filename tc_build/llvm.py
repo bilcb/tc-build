@@ -78,6 +78,13 @@ class LLVMBuilder(Builder):
                 clang_inst,
                 clang,
             ]
+            # When running an instrumented binary on certain platforms (namely
+            # Apple Silicon), there may be hangs due to instrumentation in
+            # between exclusive load and store instructions:
+            # https://github.com/llvm/llvm-project/issues/153492
+            # Enable conservative instrumentation to avoid this.
+            if tc_build.utils.cpu_is_apple_silicon():
+                clang_inst_cmd.append('--conservative-instrumentation')
             self.run_cmd(clang_inst_cmd)
 
             self.bolt_builder.bolt_instrumentation = True
@@ -124,15 +131,27 @@ class LLVMBuilder(Builder):
         bolt_readme = Path(self.folders.source, 'bolt/README.md').read_text(encoding='utf-8')
         use_cache_plus = '-reorder-blocks=cache+' in bolt_readme
         use_sf_val = '-split-functions=2' in bolt_readme
+        if (bolt_cmd_ref := Path(self.folders.source,
+                                 'bolt/docs/CommandLineArgumentReference.md')).exists():
+            bolt_cmd_ref_txt = bolt_cmd_ref.read_text(encoding='utf-8')
+            # https://github.com/llvm/llvm-project/commit/3c357a49d61e4c81a1ac016502ee504521bc8dda
+            icf_val = 'all' if '--icf=<value>' in bolt_cmd_ref_txt else '1'
+        else:
+            icf_val = '1'
+        # https://github.com/llvm/llvm-project/commit/9058503d2690022642d952ee80ecde5ecdbc79ca
+        if Path(self.folders.source, 'bolt/lib/Passes/HFSortPlus.cpp').exists():
+            reorder_funcs_val = 'hfsort+'
+        else:
+            reorder_funcs_val = 'cdsort'
         clang_opt_cmd = [
             self.tools.llvm_bolt,
             f"--data={bolt_profile}",
             '--dyno-stats',
-            '--icf=1',
+            f"--icf={icf_val}",
             '-o',
             clang_bolt,
             f"--reorder-blocks={'cache+' if use_cache_plus else 'ext-tsp'}",
-            '--reorder-functions=hfsort+',
+            f"--reorder-functions={reorder_funcs_val}",
             '--split-all-cold',
             f"--split-functions{'=3' if use_sf_val else ''}",
             '--use-gnu-stack',
