@@ -1,0 +1,31 @@
+name: Build LLVM
+on:
+  workflow_dispatch:
+
+jobs:
+  build-llvm:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install dependencies
+      run: bash build.sh deps
+    - name: Build binutils
+      run: bash build.sh binutils
+    - name: Build LLVM
+      run: bash build.sh llvm
+    - name: Optimize toolchain
+      run: bash build.sh fixup
+    - name: Package toolchain
+      run: bash build.sh pack
+    - name: Upload artifact
+      uses: actions/upload-artifact@v6
+      with:
+       name: clang-toolchain
+       path: clang.tar.gz
+    - name: Create Release
+      run: bash build.sh revision
+    - uses: softprops/action-gh-release@v2
+      with:
+        tag_name: clang-${{ env.CLANG_VERSION }}
+        body_path: revision_info.md
+        files: clang.tar.gz
