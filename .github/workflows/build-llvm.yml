@@ -1,0 +1,116 @@
+name: Build LLVM
+on:
+  workflow_dispatch:
+
+jobs:
+  build-llvm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: bash build.sh deps
+      - name: Build LLVM
+        run: bash build.sh llvm
+      - name: Save install cache
+        run: tar -czf install.tar.gz --owner=0 --group=0 --numeric-owner -C . install
+      - uses: actions/cache/save@v5
+        with:
+          path: install.tar.gz
+          key: install-${{ github.run_id }}-llvm
+
+  build-binutils:
+    needs: build-llvm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: bash build.sh deps
+      - name: Restore install cache
+        uses: actions/cache/restore@v5
+        with:
+          path: install.tar.gz
+          key: install-${{ github.run_id }}-llvm
+      - name: Restore install
+        run: |
+          tar -xzf install.tar.gz
+          rm install.tar.gz
+      - name: Build binutils
+        run: bash build.sh binutils
+        env:
+          CC: ${{ github.workspace }}/install/bin/clang
+          CXX: ${{ github.workspace }}/install/bin/clang++
+          LD: ${{ github.workspace }}/install/bin/lld
+          AR: ${{ github.workspace }}/install/bin/llvm-ar
+          NM: ${{ github.workspace }}/install/bin/llvm-nm
+          RANLIB: ${{ github.workspace }}/install/bin/llvm-ranlib
+      - name: Save install cache
+        run: tar -czf install.tar.gz --owner=0 --group=0 --numeric-owner -C . install
+      - uses: actions/cache/save@v5
+        with:
+          path: install.tar.gz
+          key: install-${{ github.run_id }}-binutils
+
+  # build-rust:
+  #   needs: build-binutils
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v6
+  #     - name: Install dependencies
+  #       run: bash build.sh deps
+  #     - name: Restore install cache
+  #       uses: actions/cache/restore@v5
+  #       with:
+  #         path: install.tar.gz
+  #         key: install-${{ github.run_id }}-binutils
+  #     - name: Restore install
+  #       run: |
+  #         tar -xzf install.tar.gz
+  #         rm install.tar.gz
+  #     - name: Build Rust
+  #       run: |
+  #         sed -i '/--disable-lld/d' tc_build/rust.py
+  #         sed -i '/--disable-llvm-bitcode-linker/d' tc_build/rust.py
+  #         bash build.sh rust
+  #       env:
+  #         CC: ${{ github.workspace }}/install/bin/clang
+  #         CXX: ${{ github.workspace }}/install/bin/clang++
+  #         LD: ${{ github.workspace }}/install/bin/lld
+  #         AR: ${{ github.workspace }}/install/bin/llvm-ar
+  #         NM: ${{ github.workspace }}/install/bin/llvm-nm
+  #         RANLIB: ${{ github.workspace }}/install/bin/llvm-ranlib
+  #     - name: Save install cache
+  #       run: tar -czf install.tar.gz --owner=0 --group=0 --numeric-owner -C . install
+  #     - uses: actions/cache/save@v5
+  #       with:
+  #         path: install.tar.gz
+  #         key: install-${{ github.run_id }}-rust
+
+  package:
+    needs: build-binutils
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install dependencies
+        run: bash build.sh deps
+      - name: Restore install cache
+        uses: actions/cache/restore@v5
+        with:
+          path: install.tar.gz
+          key: install-${{ github.run_id }}-binutils
+      - name: Restore install
+        run: |
+          tar -xzf install.tar.gz
+          rm install.tar.gz
+      - name: Optimize toolchain
+        run: bash build.sh fixup
+      - name: Package toolchain
+        run: bash build.sh pack
+      - name: Generate revision info
+        run: bash build.sh revision
+      - uses: softprops/action-gh-release@v3
+        with:
+          tag_name: clang-${{ env.CLANG_VERSION }}
+          body_path: revision_info.md
+          files: clang.tar.gz
