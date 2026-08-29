@@ -184,9 +184,17 @@ class S390XBinutilsBuilder(StandardBinutilsBuilder):
     def __init__(self) -> None:
         super().__init__()
 
-        self.extra_targets.append('s390-linux-gnu')
         self.native_arch = 's390x'
         self.target = 's390x-linux-gnu'
+
+
+class Sparc64BinutilsBuilder(StandardBinutilsBuilder):
+    def __init__(self) -> None:
+        super().__init__()
+
+        self.extra_targets.append('sparc-linux-gnu')
+        self.native_arch = 'sparc64'
+        self.target = 'sparc64-linux-gnu'
 
 
 class X8664BinutilsBuilder(StandardBinutilsBuilder):
@@ -210,6 +218,7 @@ class BinutilsSourceManager(SourceManager):
             'powerpc64le',
             'riscv64',
             's390x',
+            'sparc64',
             'x86_64',
         ]
         if Path(self.location, 'gas/config/tc-loongarch.c').exists():
