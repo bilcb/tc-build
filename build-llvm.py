@@ -33,10 +33,10 @@ except ImportError:
     BOOL_ARGS = {'action': 'store_true'}
 
 # This is a known good revision of LLVM for building the kernel
-GOOD_REVISION = '51d823197cb40a57f25d00882546374d460c649e'
+GOOD_REVISION = 'c31c334e11186d2c0b6a68a9f5619a4050cb87b7'
 
 # The version of the Linux kernel that the script downloads if necessary
-DEFAULT_KERNEL_FOR_PGO = (7, 1, 0)
+DEFAULT_KERNEL_FOR_PGO = (7, 2, 0)
 
 parser = ArgumentParser(formatter_class=RawTextHelpFormatter)
 clone_options = parser.add_mutually_exclusive_group()
@@ -773,7 +773,7 @@ if args.pgo:
         if hasattr(pgo_builder, 'configure') and callable(pgo_builder.configure):
             tc_build.utils.print_info('Building LLVM for profiling...')
             # We know this is safe to call with no arguments
-            pgo_builder.configure()  # ty: ignore[call-top-callable]
+            pgo_builder.configure()
         pgo_builder.build()
 
     instrumented.generate_profdata()
